@@ -754,32 +754,53 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
   }, [ediContainers]);
   
   // 페이지 = 짝수/홀수 베이 한 쌍 (PDF 처럼)
+  // 빈 베이도 표시 (1번~최대번호까지 연속)
   const pages = useMemo(() => {
     const bays = Object.keys(bayGroups).sort();
+    if (bays.length === 0) return [];
+    
+    // 베이 번호 자릿수 (보통 2자리 또는 3자리)
+    const bayLen = bays[0].length;
+    
+    // 최대 베이 번호 찾기
+    const maxBay = Math.max(...bays.map(b => parseInt(b)));
+    
     const out = [];
-    const used = new Set();
-    for (const b of bays) {
-      if (used.has(b)) continue;
-      const num = parseInt(b);
-      if (num % 2 === 0) {
-        const odd = String(num + 1).padStart(b.length, '0');
-        const hasOdd = bays.includes(odd);
+    
+    // 짝수 베이 1번부터 maxBay 까지 (홀수 베이는 짝수 베이와 함께 표시)
+    for (let n = 1; n <= maxBay; n++) {
+      // 짝수 베이가 메인, 홀수는 짝수+1
+      // 일반적으로 컨테이너 베이는 홀수가 20', 짝수가 40' (홀수 두개 = 짝수 한개)
+      if (n % 2 === 0) {
+        // 짝수 베이 페이지 (홀수 베이 = 같은 페이지)
+        const evenStr = String(n).padStart(bayLen, '0');
+        const oddBefore = String(n - 1).padStart(bayLen, '0');
+        const oddAfter = String(n + 1).padStart(bayLen, '0');
+        
+        const hasEven = bays.includes(evenStr);
+        const hasOdd = bays.includes(oddAfter);
+        
+        // 데이터가 있는 베이만 표시할지, 빈 베이도 표시할지
+        // → 빈 베이도 표시
         out.push({
-          title: hasOdd ? `BAY(${b}) ${odd}` : `BAY ${b}`,
-          evenBay: b,
-          oddBay: hasOdd ? odd : null,
+          title: `BAY ${evenStr}${hasOdd || bays.includes(oddAfter) ? ` / ${oddAfter}` : ''}`,
+          evenBay: evenStr,
+          oddBay: oddAfter,
+          isEmpty: !hasEven && !hasOdd,
         });
-        used.add(b);
-        if (hasOdd) used.add(odd);
-      } else {
-        out.push({
-          title: `BAY ${b}`,
-          evenBay: null,
-          oddBay: b,
-        });
-        used.add(b);
       }
     }
+    
+    // 마지막에 홀수 베이 1번 (보통 선수 부분) 따로 추가
+    if (bays.includes(String(1).padStart(bayLen, '0'))) {
+      out.unshift({
+        title: `BAY ${String(1).padStart(bayLen, '0')}`,
+        evenBay: null,
+        oddBay: String(1).padStart(bayLen, '0'),
+        isEmpty: false,
+      });
+    }
+    
     return out;
   }, [bayGroups]);
   
@@ -825,14 +846,42 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
     });
   };
   
-  // DECK / HOLD 분리
+  // 베이 구조 사전 분석 (빈 슬롯 포함하여 전체 row/tier 범위 추출)
+  const bayStructureMap = useMemo(() => {
+    const map = {}; // { bay: { rows: Set, deckTiers: Set, holdTiers: Set } }
+    for (const c of ediContainers) {
+      if (!c.bay) continue;
+      if (!map[c.bay]) map[c.bay] = { rows: new Set(), deckTiers: new Set(), holdTiers: new Set() };
+      if (c.row) map[c.bay].rows.add(c.row);
+      if (c.tier) {
+        if (parseInt(c.tier) >= 80) map[c.bay].deckTiers.add(c.tier);
+        else map[c.bay].holdTiers.add(c.tier);
+      }
+    }
+    return map;
+  }, [ediContainers]);
+  
+  // DECK / HOLD 분리 (페이지 컨테이너만)
   const deckContainers = pageContainers.filter(c => parseInt(c.tier) >= 80);
   const holdContainers = pageContainers.filter(c => parseInt(c.tier) < 80);
   
-  const deckRows = sortRows(deckContainers.map(c => c.row));
-  const deckTiers = Array.from(new Set(deckContainers.map(c => c.tier))).sort((a, b) => parseInt(b) - parseInt(a));
-  const holdRows = sortRows(holdContainers.map(c => c.row));
-  const holdTiers = Array.from(new Set(holdContainers.map(c => c.tier))).sort((a, b) => parseInt(b) - parseInt(a));
+  // ROW/TIER 추출: 페이지의 베이 구조를 합산
+  const pageBayKeys = [currentPage.evenBay, currentPage.oddBay].filter(Boolean);
+  const allRowsInPage = new Set();
+  const allDeckTiers = new Set();
+  const allHoldTiers = new Set();
+  for (const bk of pageBayKeys) {
+    const bs = bayStructureMap[bk];
+    if (!bs) continue;
+    for (const r of bs.rows) allRowsInPage.add(r);
+    for (const t of bs.deckTiers) allDeckTiers.add(t);
+    for (const t of bs.holdTiers) allHoldTiers.add(t);
+  }
+  
+  const deckRows = sortRows([...allRowsInPage]);
+  const deckTiers = [...allDeckTiers].sort((a, b) => parseInt(b) - parseInt(a));
+  const holdRows = sortRows([...allRowsInPage]);
+  const holdTiers = [...allHoldTiers].sort((a, b) => parseInt(b) - parseInt(a));
   
   // 셀 찾기
   const getCell = (row, tier) => {
@@ -1019,6 +1068,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
                 isMobile={isMobile}
                 cellColor={cellColor}
                 globalRowRange={globalRowRange}
+                bayStructureMap={bayStructureMap}
               />
             ))}
           </div>
@@ -1037,6 +1087,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
             isMobile={isMobile}
             cellColor={cellColor}
             globalRowRange={globalRowRange}
+            bayStructureMap={bayStructureMap}
           />
         )}
       </div>
@@ -1053,7 +1104,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
 
 // === 베이 한 페이지 (DECK + 해치커버 + HOLD) ===
 // === 베이 한 페이지 — 5:5 비율 + X 표시 + 전체 베이 가운데 정렬 ===
-function BaySection({ page, bayGroups, completedMap, xrayList, dischargeCns, shiftingMap, isPtk, setSelectedCn, cellW, cellH, fontSize, isMobile, cellColor, globalRowRange }) {
+function BaySection({ page, bayGroups, completedMap, xrayList, dischargeCns, shiftingMap, isPtk, setSelectedCn, cellW, cellH, fontSize, isMobile, cellColor, globalRowRange, bayStructureMap }) {
   // 짝수 베이 컨 (40피트)
   const evenContainers = page.evenBay ? (bayGroups[page.evenBay] || []) : [];
   // 홀수 베이 컨 (20피트)
@@ -1096,9 +1147,18 @@ function BaySection({ page, bayGroups, completedMap, xrayList, dischargeCns, shi
   };
   
   // X 표시 위치도 ROW 에 포함시켜야 함 (없는 ROW 라도 표시 필요)
+  // V29: bayStructureMap 에서 베이 전체의 row 도 가져옴 (빈 슬롯도 표시)
+  const fullRowsFromStructure = [];
+  if (bayStructureMap) {
+    for (const bk of [page.evenBay, page.oddBay].filter(Boolean)) {
+      const bs = bayStructureMap[bk];
+      if (bs) for (const r of bs.rows) fullRowsFromStructure.push(r);
+    }
+  }
   const allRowsRaw = sortRows([
     ...allContainers.map(c => c.row),
-    ...Array.from(xMarks).map(k => k.split('-')[0])
+    ...Array.from(xMarks).map(k => k.split('-')[0]),
+    ...fullRowsFromStructure
   ]);
   
   // 좌우 5:5 균형 — 모든 베이 통일 폭 (00 이 전체에서 같은 위치)
