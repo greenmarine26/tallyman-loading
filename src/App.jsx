@@ -104,7 +104,7 @@ export default function App() {
     return dischargeRecords.map(r => {
       const edi = ediByCn[r.cn];
       if (edi) {
-        // 리스트의 F/E, ISO, OP 가 있으면 리스트 우선 (리스트가 더 최신)
+        // 리스트의 정보가 있으면 리스트 우선 + EDI 보충
         return { 
           ...edi, 
           sl: r.sl || edi.sl, 
@@ -121,7 +121,23 @@ export default function App() {
           _matched: true 
         };
       }
-      return { ...r, _matched: false };
+      // EDI 매칭 안 되어도 리스트 정보로 표시 (cn, sl, iso, wt, op 등)
+      return { 
+        cn: r.cn,
+        sl: r.sl || '',
+        bl: r.bl || '',
+        wt: r.wt || 0,
+        fe: r.fe || '',
+        iso: r.iso || '',
+        op: r.op || '',
+        pol: r.pol || '',
+        pod: r.pod || '',
+        rf: r.rf || false,
+        dg: r.dg || false,
+        tmp: r.tmp || '',
+        bay: '', row: '', tier: '',
+        _matched: false 
+      };
     });
   }, [dischargeRecords, ediContainers]);
   
@@ -130,21 +146,41 @@ export default function App() {
     if (dischargeRecords.length === 0) return ediContainers;
     const recordByCn = {};
     for (const r of dischargeRecords) recordByCn[r.cn] = r;
+    
+    // F/E 추론 함수 (실번호 + 무게 + 규격 기반)
+    const inferFE = (sl, wt, iso) => {
+      if (sl) return 'F'; // 실번호 있으면 F
+      if (!wt || wt === 0) return null; // 무게 없으면 추론 불가
+      const isoCheck = (iso || '').toUpperCase();
+      const is20 = isoCheck.startsWith('22') || isoCheck.startsWith('20');
+      const isReefer = /R[E51]/i.test(isoCheck);
+      const threshold = isReefer ? 6000 : (is20 ? 3000 : 5000);
+      return wt >= threshold ? 'F' : 'E';
+    };
+    
     return ediContainers.map(c => {
       const r = recordByCn[c.cn];
       if (!r) return c;
-      // 리스트의 F/E, 무게 등 보정
+      
+      // 리스트에 있는 컨이면 - 정보 합쳐서 F/E 추론
+      const sl = r.sl || c.sl || '';
+      const wt = r.wt || c.wt || 0;
+      const iso = r.iso || c.iso || '';
+      const fe = r.fe || inferFE(sl, wt, iso) || c.fe || 'F';
+      
       return {
         ...c,
-        fe: r.fe || c.fe,
+        fe,
         iso: r.iso || c.iso,
         op: r.op || c.op,
-        wt: r.wt || c.wt,
-        sl: r.sl || c.sl,
+        wt: wt,
+        sl: sl,
         bl: r.bl || c.bl,
         rf: r.rf || c.rf,
         dg: r.dg || c.dg,
         tmp: r.tmp || c.tmp,
+        pol: r.pol || c.pol,
+        pod: r.pod || c.pod,
       };
     });
   }, [ediContainers, dischargeRecords]);
