@@ -56,7 +56,7 @@ export default function App() {
   // Firebase 실시간 구독
   useEffect(() => {
     const unsubV = fbSubscribeVoyages((data) => {
-      // 양하 항차만 필터
+      // 선적 항차만 필터
       const filtered = {};
       for (const [k, v] of Object.entries(data)) {
         if (v.type === 'loading') filtered[k] = v;
@@ -217,7 +217,7 @@ export default function App() {
       <nav className="bg-slate-900 border-b border-slate-800 sticky top-[52px] z-30">
         <div className="max-w-7xl mx-auto px-1 flex gap-0.5 overflow-x-auto">
           {[
-            { k: 'list', t: '양하리스트', i: ArrowUpFromLine },
+            { k: 'list', t: '선적리스트', i: ArrowUpFromLine },
             { k: 'bay', t: '베이플랜', i: MapPin },
             { k: 'search', t: '검색', i: Search },
             { k: 'voyage', t: '항차관리', i: Upload },
@@ -395,7 +395,7 @@ function DischargeListTab({ list, setSelectedCn, xrayList, completedMap, toggleX
   }
   
   return <div className="space-y-2">
-    {/* 검색창 (양하리스트 안에 통합) */}
+    {/* 검색창 (선적리스트 안에 통합) */}
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-2">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"/>
@@ -1551,7 +1551,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
       const { records } = await parseListExcel(buf);
       if (records.length === 0) { setDischargeStatus({ ok: false, msg: '없음' }); return; }
       await applyDischargeList(activeKey, records);
-      setDischargeStatus({ ok: true, msg: `${records.length}대 양하 등록` });
+      setDischargeStatus({ ok: true, msg: `${records.length}대 선적 등록` });
     } catch (e) { setDischargeStatus({ ok: false, msg: '실패: ' + e.message }); }
     if (dischargeRef.current) dischargeRef.current.value = '';
   };
@@ -1609,7 +1609,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
       {Object.keys(voyages).length === 0 ? <div className="text-center text-slate-500 text-sm py-6">등록된 항차 없음</div> : <div className="space-y-1.5">{Object.values(voyages).map(v => <div key={v.key || v.vsl + v.voy} className={`p-2.5 rounded border flex items-center gap-2 ${(v.key || makeVoyageKey(v.vsl, v.voy, 'loading')) === activeKey ? 'bg-amber-900/20 border-amber-600' : 'bg-slate-800/40 border-slate-700'}`}>
         <button onClick={() => setActiveKey(v.key || makeVoyageKey(v.vsl, v.voy, 'loading'))} className="flex-1 text-left">
           <div className="font-bold text-sm">{v.vsl} <span className="mono text-amber-300">{v.voy}</span></div>
-          <div className="text-[10px] text-slate-400 mono">EDI {v.ediContainers?.length || 0} · 양하 {v.dischargeRecords?.length || 0}</div>
+          <div className="text-[10px] text-slate-400 mono">EDI {v.ediContainers?.length || 0} · 선적 {v.dischargeRecords?.length || 0}</div>
         </button>
         <button onClick={() => deleteVoyage(v.key || makeVoyageKey(v.vsl, v.voy, 'loading'))} className="w-8 h-8 bg-red-900/40 hover:bg-red-900/60 rounded text-red-300 flex items-center justify-center"><Trash2 className="w-4 h-4"/></button>
       </div>)}</div>}
