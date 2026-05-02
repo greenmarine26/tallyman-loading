@@ -1139,7 +1139,7 @@ function BaySection({ page, bayGroups, completedMap, xrayList, dischargeCns, shi
   const xMarks = useMemo(() => {
     const marks = new Set(); // "row-tier" 형식 키
     
-    // V34: 모든 컨테이너의 점유 자리 먼저 수집 (X 안 그리기 위해)
+    // V36: 모든 컨테이너의 점유 자리 먼저 수집 (X 안 그리기 위해)
     const occupied = new Set();
     for (const c of allContainers) {
       if (c.row && c.tier) occupied.add(`${c.row}-${c.tier}`);
@@ -1154,7 +1154,7 @@ function BaySection({ page, bayGroups, completedMap, xrayList, dischargeCns, shi
       if (oddN < 0) continue;
       const oddRow = String(oddN).padStart(2, '0');
       const xKey = `${oddRow}-${c.tier}`;
-      // V34: 그 자리에 이미 컨테이너 있으면 X 안 그림 (덮어쓰지 않기)
+      // V36: 그 자리에 이미 컨테이너 있으면 X 안 그림 (덮어쓰지 않기)
       if (occupied.has(xKey)) continue;
       marks.add(xKey);
     }
@@ -1253,7 +1253,7 @@ function BaySection({ page, bayGroups, completedMap, xrayList, dischargeCns, shi
       );
     }
     
-    // V34: 컨테이너 먼저 체크 (X 보다 우선)
+    // V36: 컨테이너 먼저 체크 (X 보다 우선)
     const c = getCell(row, tier);
     
     if (!c && isXmark(row, tier)) {
