@@ -1,9 +1,9 @@
-// 그린마린 선적 검수앱 (모바일용, Firebase 실시간 동기화)
+// 그린마린 양하 검수앱 (모바일용, Firebase 실시간 동기화)
 // 개발자: 연지아빠
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
-  Search, MapPin, ArrowUpFromLine, Upload, Check, X,
+  Search, MapPin, ArrowDownToLine, Upload, Check, X,
   ScanLine, FileText, Trash2, ChevronLeft, ChevronRight,
   RefreshCw, User, Cloud, CloudOff,
   Mic, MicOff, Volume2, VolumeX, Ship
@@ -21,9 +21,9 @@ import {
   makeVoyageKey
 } from './firebase.js';
 
-const INSPECTOR_KEY = 'loading_active_inspector';
-const INSPECTORS_KEY = 'loading_inspectors';
-const ACTIVE_KEY = 'loading_active_voyage';
+const INSPECTOR_KEY = 'discharge_active_inspector';
+const INSPECTORS_KEY = 'discharge_inspectors';
+const ACTIVE_KEY = 'discharge_active_voyage';
 
 export default function App() {
   const [voyagesAll, setVoyagesAll] = useState({});
@@ -56,10 +56,10 @@ export default function App() {
   // Firebase 실시간 구독
   useEffect(() => {
     const unsubV = fbSubscribeVoyages((data) => {
-      // 선적 항차만 필터
+      // 양하 항차만 필터
       const filtered = {};
       for (const [k, v] of Object.entries(data)) {
-        if (v.type === 'loading') filtered[k] = v;
+        if (v.type === 'discharge') filtered[k] = v;
       }
       setVoyagesAll(filtered);
       setOnline(true);
@@ -204,7 +204,7 @@ export default function App() {
       return;
     }
     try {
-      await fbCompleteContainer(activeKey, cn, { by: inspector, damaged, side: 'loading' });
+      await fbCompleteContainer(activeKey, cn, { by: inspector, damaged, side: 'discharge' });
       setQuery('');
       setSelectedCn(null);
     } catch (e) {
@@ -227,7 +227,7 @@ export default function App() {
   
   // 항차 추가 (또는 기존 항차에 누적 합산)
   const addVoyage = async (vsl, voy, newContainers, etd = '', pol = '', source = 'EDI') => {
-    const key = makeVoyageKey(vsl, voy, 'loading');
+    const key = makeVoyageKey(vsl, voy, 'discharge');
     try {
       // 기존 항차 있으면 누적 합산
       const existing = voyagesAll[key];
@@ -258,7 +258,7 @@ export default function App() {
       }
       
       await fbAddVoyage(key, {
-        vsl, voy, etd, pol, type: 'loading',
+        vsl, voy, etd, pol, type: 'discharge',
         ediContainers: mergedContainers,
         dischargeRecords: existing?.dischargeRecords || [],
         sources,
@@ -268,7 +268,7 @@ export default function App() {
     } catch (e) { alert('등록 실패: ' + e.message); }
   };
   
-  // 선적 리스트 누적 합산
+  // 양하 리스트 누적 합산
   const applyDischargeList = async (key, newRecords, isReplace = false) => {
     try {
       let merged;
@@ -323,9 +323,9 @@ export default function App() {
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <ArrowUpFromLine className="w-5 h-5 text-blue-400 flex-shrink-0"/>
+            <ArrowDownToLine className="w-5 h-5 text-blue-400 flex-shrink-0"/>
             <div className="min-w-0">
-              <div className="font-bold text-sm sm:text-base text-blue-200 truncate">선적 검수</div>
+              <div className="font-bold text-sm sm:text-base text-blue-200 truncate">양하 검수</div>
               <div className="text-[10px] text-slate-500 truncate">
                 {current ? `${current.vsl} ${current.voy}` : '항차 없음'}
               </div>
@@ -346,7 +346,7 @@ export default function App() {
       <nav className="bg-slate-900 border-b border-slate-800 sticky top-[52px] z-30">
         <div className="max-w-7xl mx-auto px-1 flex gap-0.5 overflow-x-auto">
           {[
-            { k: 'list', t: '선적리스트', i: ArrowUpFromLine },
+            { k: 'list', t: '양하리스트', i: ArrowDownToLine },
             { k: 'bay', t: '베이플랜', i: MapPin },
             { k: 'search', t: '검색', i: Search },
             { k: 'voyage', t: '항차관리', i: Upload },
@@ -391,7 +391,7 @@ export default function App() {
         onClose={() => setSelectedCn(null)}/>}
       
       <footer className="border-t border-slate-800 mt-8 py-3 text-center text-[10px] text-slate-500">
-        선적 검수앱 · ☁ Firebase 실시간 동기화 · 개발자: <span className="text-amber-400">연지아빠</span>
+        양하 검수앱 · ☁ Firebase 실시간 동기화 · 개발자: <span className="text-amber-400">연지아빠</span>
       </footer>
     </div>
   );
@@ -518,14 +518,14 @@ function DischargeListTab({ list, setSelectedCn, xrayList, completedMap, toggleX
   
   if (list.length === 0) {
     return <div className="bg-slate-900 border border-slate-800 rounded-lg p-12 text-center text-slate-500">
-      <ArrowUpFromLine className="w-12 h-12 mx-auto mb-3 opacity-30"/>
-      선적 리스트가 없습니다.<br/>
-      <span className="text-xs">항차관리에서 선적 리스트(엑셀)을 업로드하세요.</span>
+      <ArrowDownToLine className="w-12 h-12 mx-auto mb-3 opacity-30"/>
+      양하 리스트가 없습니다.<br/>
+      <span className="text-xs">항차관리에서 양하 리스트(엑셀)을 업로드하세요.</span>
     </div>;
   }
   
   return <div className="space-y-2">
-    {/* 검색창 (선적리스트 안에 통합) */}
+    {/* 검색창 (양하리스트 안에 통합) */}
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-2">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"/>
@@ -628,7 +628,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
   
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   
-  // 평택 선적 대상 = POD (목적지) 이 PTK 또는 KRPTK
+  // 평택 양하 대상 = POD (목적지) 이 PTK 또는 KRPTK
   const isPtk = (c) => {
     const pod = (c.pod || '').toUpperCase();
     return pod === 'PTK' || pod === 'KRPTK' || pod.endsWith('PTK');
@@ -918,7 +918,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
       return 'bg-orange-200 text-orange-900 border-orange-400';
     }
     if (isPtk(c) || dischargeCns.has(c.cn)) {
-      // 평택 선적 = 파스텔 노랑 (형광펜 같이)
+      // 평택 양하 = 파스텔 노랑 (형광펜 같이)
       return 'bg-yellow-200 text-yellow-900 border-yellow-500 ring-1 ring-yellow-400';
     }
     // 통과 화물 = 옅은 회색
@@ -1005,7 +1005,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
       {/* 헤더 */}
       <div className="bg-blue-900/20 border border-blue-700/40 rounded-lg p-2.5 flex flex-wrap items-center gap-2 text-xs">
         <div className="font-bold flex items-center gap-1.5 text-blue-200">
-          <ArrowUpFromLine className="w-4 h-4 text-blue-400"/>
+          <ArrowDownToLine className="w-4 h-4 text-blue-400"/>
           {currentPage.title}
           <span className="text-[10px] text-slate-500">({safeIdx + 1}/{pages.length})</span>
         </div>
@@ -1055,7 +1055,7 @@ function BayTab({ ediContainers, dischargeCns, xrayList, setSelectedCn, complete
       
       {/* 범례 */}
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 flex flex-wrap gap-2 text-[10px]">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-500"></span>평택 선적</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-200 border border-yellow-500"></span>평택 양하</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-200 border border-orange-400"></span>시프팅</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-white border border-slate-300"></span>완료</span>
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-300"></span>통과</span>
@@ -1519,7 +1519,7 @@ const speakContainer = (c, xrayOn) => {
     posText = `, ${bay}베이 ${row}열 ${c.tier}단 ${deck}`;
   }
   
-  const text = `선적 컨테이너. ${cnSpoken}${sealText}${posText}${xrayWarn}`;
+  const text = `양하 컨테이너. ${cnSpoken}${sealText}${posText}${xrayWarn}`;
   
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'ko-KR';
@@ -1684,7 +1684,7 @@ function SearchTab({ query, setQuery, results, xrayList, dischargeCns, setSelect
             <div key={(c.cn || '_') + i} onClick={() => setSelectedCn(c.cn)}
               className={`px-3 py-2.5 cursor-pointer hover:bg-slate-800/50 ${isPtk ? 'bg-red-950/20' : ''}`}>
               <div className="flex items-center gap-2 flex-wrap">
-                {isPtk && <span className="text-red-300 text-xs font-bold">[선적]</span>}
+                {isPtk && <span className="text-red-300 text-xs font-bold">[양하]</span>}
                 <span className="mono font-black text-sm">{c.cn || ''}</span>
                 <span className={`text-[10px] mono px-1.5 py-0.5 rounded font-bold ${c.fe === 'F' ? 'bg-emerald-900 text-emerald-300' : 'bg-slate-700 text-slate-300'}`}>{c.fe || 'F'}</span>
                 {c.dg && <span className="text-red-400">🔥</span>}
@@ -1776,7 +1776,7 @@ function VoyageStatsBox({ voyage }) {
     return result;
   }, [containers, sources]);
   
-  // 선적리스트 ↔ EDI/ASC 비교 (선사별)
+  // 양하리스트 ↔ EDI/ASC 비교 (선사별)
   // 양방향 체크: 리스트 컨이 EDI 에 없거나, EDI 의 양하 대상이 리스트에 없거나
   const listValidation = useMemo(() => {
     if (records.length === 0) return null;
@@ -1892,7 +1892,7 @@ function VoyageStatsBox({ voyage }) {
         </div>
       )}
       
-      {/* 선적리스트 검증 */}
+      {/* 양하리스트 검증 */}
       {listValidation && (
         <div className={`rounded-lg p-3 border ${listValidation.missingInEdi === 0 && listValidation.ptkMissingInList === 0 ? 'bg-emerald-900/30 border-emerald-700' : 'bg-red-900/30 border-red-700'}`}>
           <div className="text-xs font-bold mb-1">
@@ -2066,7 +2066,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
           continue;
         }
         
-        // V32: 선적앱 = POD 가 PTK/KRPTK 인 컨테이너만 (평택 선적 대상)
+        // V32: 양하앱 = POD 가 PTK/KRPTK 인 컨테이너만 (평택 양하 대상)
         const totalCount = r.containers.length;
         r.containers = r.containers.filter(c => {
           const pod = (c.pod || '').toUpperCase();
@@ -2075,7 +2075,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
         const filteredCount = r.containers.length;
         
         if (r.containers.length === 0) {
-          results.push(`❌ ${file.name}: 평택 선적 대상 없음 (전체 ${totalCount}대)`);
+          results.push(`❌ ${file.name}: 평택 양하 대상 없음 (전체 ${totalCount}대)`);
           continue;
         }
         const vsl = r.vsl || file.name.replace(/\.[^.]+$/, '');
@@ -2093,7 +2093,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
         if (!voyageGroups[groupKey].sources.includes(fileType)) {
           voyageGroups[groupKey].sources.push(fileType);
         }
-        results.push(`✅ [${fileType}] ${vsl} ${voy}: 평택 선적 ${filteredCount}대 (전체 ${totalCount}대)`);
+        results.push(`✅ [${fileType}] ${vsl} ${voy}: 평택 양하 ${filteredCount}대 (전체 ${totalCount}대)`);
       } catch (e) {
         results.push(`❌ ${file.name}: ${e.message}`);
       }
@@ -2212,7 +2212,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
     {/* 활성 항차 통계 + 검증 */}
     {activeKey && voyages[activeKey] && <VoyageStatsBox voyage={voyages[activeKey]}/>}
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-2">
-      <div className="font-bold text-blue-200 text-sm">1. 선적 자료 (ASC / EDI / TXT) — 여러 개 동시 선택</div>
+      <div className="font-bold text-blue-200 text-sm">1. 양하 자료 (ASC / EDI / TXT) — 여러 개 동시 선택</div>
       <input ref={ediRef} type="file" multiple accept="*/*" onChange={e => handleEdi(e.target.files)} style={{ display: 'none' }}/>
       <button onClick={() => ediRef.current?.click()}
         className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-400 active:bg-blue-600 text-slate-900 rounded-lg font-bold text-sm flex items-center justify-center gap-2">
@@ -2222,7 +2222,7 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
       {ediStatus && <div className={`text-xs px-2 py-1.5 rounded mono whitespace-pre-line ${ediStatus.ok ? 'bg-emerald-900/40 text-emerald-200' : ediStatus.loading ? 'bg-slate-800 text-slate-300' : 'bg-red-900/40 text-red-200'}`}>{ediStatus.msg}</div>}
     </div>
     {activeKey && <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-2">
-      <div className="font-bold text-amber-200 text-sm">2. 선적 리스트 (Excel) — 여러 개 동시 선택</div>
+      <div className="font-bold text-amber-200 text-sm">2. 양하 리스트 (Excel) — 여러 개 동시 선택</div>
       <input ref={dischargeRef} type="file" multiple accept="*/*" onChange={e => handleDischarge(e.target.files)} style={{ display: 'none' }}/>
       <button onClick={() => dischargeRef.current?.click()}
         className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-900 rounded-lg font-bold text-sm flex items-center justify-center gap-2">
@@ -2231,27 +2231,38 @@ function VoyageTab({ voyages, activeKey, setActiveKey, addVoyage, deleteVoyage, 
       </button>
       {dischargeStatus && <div className={`text-xs px-2 py-1.5 rounded mono whitespace-pre-line ${dischargeStatus.ok ? 'bg-emerald-900/40 text-emerald-200' : dischargeStatus.loading ? 'bg-slate-800 text-slate-300' : 'bg-red-900/40 text-red-200'}`}>{dischargeStatus.msg}</div>}
     </div>}
+    {activeKey && <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-2">
+      <div className="font-bold text-purple-200 text-sm">3. X-RAY 리스트 (Excel) — 여러 개 동시 선택</div>
+      <input ref={xrayRef} type="file" multiple accept="*/*" onChange={e => handleXray(e.target.files)} style={{ display: 'none' }}/>
+      <button onClick={() => xrayRef.current?.click()}
+        className="w-full py-3 px-4 bg-purple-500 hover:bg-purple-400 active:bg-purple-600 text-slate-900 rounded-lg font-bold text-sm flex items-center justify-center gap-2">
+        <Upload className="w-5 h-5"/>
+        X-RAY 파일 선택
+      </button>
+      {xrayStatus && <div className={`text-xs px-2 py-1.5 rounded mono whitespace-pre-line ${xrayStatus.ok ? 'bg-emerald-900/40 text-emerald-200' : xrayStatus.loading ? 'bg-slate-800 text-slate-300' : 'bg-red-900/40 text-red-200'}`}>{xrayStatus.msg}</div>}
+    </div>}
     <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
       <div className="font-bold text-sm mb-3">항차 목록 ({Object.keys(voyages).length}개) <span className="text-[10px] text-emerald-400">☁ Firebase</span></div>
-      {Object.keys(voyages).length === 0 ? <div className="text-center text-slate-500 text-sm py-6">등록된 항차 없음</div> : <div className="space-y-1.5">{Object.values(voyages).map(v => <div key={v.key || v.vsl + v.voy} className={`p-2.5 rounded border flex items-center gap-2 ${(v.key || makeVoyageKey(v.vsl, v.voy, 'loading')) === activeKey ? 'bg-amber-900/20 border-amber-600' : 'bg-slate-800/40 border-slate-700'}`}>
-        <button onClick={() => setActiveKey(v.key || makeVoyageKey(v.vsl, v.voy, 'loading'))} className="flex-1 text-left">
+      {Object.keys(voyages).length === 0 ? <div className="text-center text-slate-500 text-sm py-6">등록된 항차 없음</div> : <div className="space-y-1.5">{Object.values(voyages).map(v => <div key={v.key || v.vsl + v.voy} className={`p-2.5 rounded border flex items-center gap-2 ${(v.key || makeVoyageKey(v.vsl, v.voy, 'discharge')) === activeKey ? 'bg-amber-900/20 border-amber-600' : 'bg-slate-800/40 border-slate-700'}`}>
+        <button onClick={() => setActiveKey(v.key || makeVoyageKey(v.vsl, v.voy, 'discharge'))} className="flex-1 text-left">
           <div className="font-bold text-sm">{v.vsl} <span className="mono text-amber-300">{v.voy}</span></div>
           <div className="text-[10px] text-slate-400 mono">EDI {v.ediContainers?.length || 0} · 양하 {v.dischargeRecords?.length || 0}</div>
         </button>
-        <button onClick={() => deleteVoyage(v.key || makeVoyageKey(v.vsl, v.voy, 'loading'))} className="w-8 h-8 bg-red-900/40 hover:bg-red-900/60 rounded text-red-300 flex items-center justify-center"><Trash2 className="w-4 h-4"/></button>
+        <button onClick={() => deleteVoyage(v.key || makeVoyageKey(v.vsl, v.voy, 'discharge'))} className="w-8 h-8 bg-red-900/40 hover:bg-red-900/60 rounded text-red-300 flex items-center justify-center"><Trash2 className="w-4 h-4"/></button>
       </div>)}</div>}
     </div>
   </div>;
 }
 
 function DetailModal({ c, isDischarge, xrayMarked, toggleXray, completed, completedInfo, onComplete, onCancelComplete, xraySeal, onSetXraySeal, onClose }) {
-  const [seal, setSeal] = useState(xraySeal.seal || '');
+  // 실번호: 수정된 값 (xraySeal) 우선, 없으면 양하리스트 (c.sl)
+  const [seal, setSeal] = useState(xraySeal.seal || c.sl || '');
   const [eseal, setEseal] = useState(xraySeal.eseal || '');
   return <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-3 overflow-y-auto" onClick={onClose}>
     <div className="bg-slate-900 border border-slate-700 rounded-lg max-w-md w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          {isDischarge && <div className="text-[10px] text-red-300 font-bold mb-0.5">[평택 선적]</div>}
+          {isDischarge && <div className="text-[10px] text-red-300 font-bold mb-0.5">[평택 양하]</div>}
           <div className="mono font-black text-xl text-amber-200">{c.cn}</div>
           <div className="text-xs text-slate-400 mt-1">{c.bay && <>{fmtPos(c)} · </>}{isoToLabel(c.iso)} · {c.fe || 'F'}{c.wt > 0 && <> · {formatWt(c.wt)}</>}</div>
         </div>
@@ -2260,10 +2271,20 @@ function DetailModal({ c, isDischarge, xrayMarked, toggleXray, completed, comple
       <div className="grid grid-cols-2 gap-2 text-xs bg-slate-800/50 rounded p-2.5">
         {c.pol && <div><span className="text-slate-400">POL:</span> <span className="mono font-bold">{c.pol}</span></div>}
         {c.pod && <div><span className="text-slate-400">POD:</span> <span className="mono font-bold">{c.pod}</span></div>}
-        {c.sl && <div className="col-span-2"><span className="text-slate-400">실:</span> <span className="mono font-bold text-amber-200">{c.sl}</span></div>}
         {c.bl && <div className="col-span-2"><span className="text-slate-400">B/L:</span> <span className="mono">{c.bl}</span></div>}
         {c.op && <div><span className="text-slate-400">선사:</span> {c.op}</div>}
         {c.tmp && <div><span className="text-slate-400">온도:</span> <span className="text-cyan-300 font-bold">{c.tmp}°C</span></div>}
+      </div>
+      
+      {/* 실번호 (수정 가능) - 양하리스트의 원본 실번호 + 현장 수정 */}
+      <div className="bg-amber-900/20 border border-amber-700/40 rounded p-2.5 space-y-1">
+        <div className="text-[10px] text-amber-200 font-bold">실 번호 (현장에서 다르면 수정)</div>
+        <input value={seal} onChange={e => setSeal(e.target.value)} onBlur={() => onSetXraySeal(seal, eseal)} 
+          placeholder={c.sl || '실 번호 입력'} 
+          className="w-full px-2 py-2 bg-slate-800 rounded text-sm mono font-bold text-amber-200"/>
+        {c.sl && seal && c.sl !== seal && (
+          <div className="text-[10px] text-orange-300">⚠ 원본: {c.sl} → 수정됨: {seal}</div>
+        )}
       </div>
       {(c.dg || c.rf || c.tk || c.oog) && <div className="flex flex-wrap gap-1 text-xs">
         {c.dg && <span className="bg-red-900/60 text-red-200 px-2 py-1 rounded font-bold">🔥 DG {c.un && `UN${c.un}`}</span>}
@@ -2276,9 +2297,8 @@ function DetailModal({ c, isDischarge, xrayMarked, toggleXray, completed, comple
       </div>}
       <div className="space-y-2">
         
-        {xrayMarked && <div className="bg-amber-900/20 border border-amber-700/40 rounded p-2.5 space-y-2">
-          <div className="text-[10px] text-amber-200 font-bold">실 / E-SEAL</div>
-          <input value={seal} onChange={e => setSeal(e.target.value)} onBlur={() => onSetXraySeal(seal, eseal)} placeholder="실 번호" className="w-full px-2 py-1.5 bg-slate-800 rounded text-xs mono"/>
+        {xrayMarked && <div className="bg-purple-900/20 border border-purple-700/40 rounded p-2.5 space-y-2">
+          <div className="text-[10px] text-purple-200 font-bold">🔍 X-RAY 검사 - E-SEAL</div>
           <input value={eseal} onChange={e => setEseal(e.target.value)} onBlur={() => onSetXraySeal(seal, eseal)} placeholder="E-SEAL 4자리" className="w-full px-2 py-1.5 bg-slate-800 rounded text-xs mono"/>
         </div>}
       </div>
